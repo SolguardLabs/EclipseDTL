@@ -1,0 +1,12 @@
+{
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "target": true,
+    "node_modules": true,
+    "dist": true,
+    "coverage": true
+  },
+  "rust-analyzer.cargo.allTargets": true,
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.check.extraArgs": ["--all-targets", "--all-features"]
+}

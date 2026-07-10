@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Run normal scenario",
+      "cargo": {
+        "args": ["build", "--bin", "eclipsedtl"],
+        "filter": {
+          "name": "eclipsedtl",
+          "kind": "bin"
+        }
+      },
+      "args": ["--scenario", "${workspaceFolder}/tests/fixtures/normal_batch.json"],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

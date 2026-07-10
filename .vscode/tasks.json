@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cargo build",
+      "type": "shell",
+      "command": "cargo build --all-targets --locked",
+      "group": "build",
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "cargo test",
+      "type": "shell",
+      "command": "cargo test --locked",
+      "group": "test",
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "node scenarios",
+      "type": "shell",
+      "command": "node --test \"tests/node/*.test.js\"",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "ci",
+      "type": "shell",
+      "command": "bash scripts/ci.sh",
+      "group": "test",
+      "problemMatcher": ["$rustc"]
+    }
+  ]
+}

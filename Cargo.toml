@@ -1,0 +1,22 @@
+[package]
+name = "eclipsedtl"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Internal liquidity auction and settlement engine for DTL routes"
+
+[lib]
+name = "eclipsedtl"
+path = "src/lib.rs"
+
+[[bin]]
+name = "eclipsedtl"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+
+[dev-dependencies]
+pretty_assertions = "1.4"

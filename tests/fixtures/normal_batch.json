@@ -1,0 +1,159 @@
+{
+  "name": "normal_batch",
+  "vault_account": "vault",
+  "actions": [
+    {
+      "type": "register_asset",
+      "id": "EUSD",
+      "symbol": "EUSD",
+      "decimals": 6,
+      "class": "Stable"
+    },
+    {
+      "type": "register_asset",
+      "id": "ELIQ",
+      "symbol": "ELIQ",
+      "decimals": 6,
+      "class": "InternalCredit"
+    },
+    {
+      "type": "create_account",
+      "id": "vault",
+      "role": "Vault",
+      "label": "Protocol settlement vault"
+    },
+    {
+      "type": "create_account",
+      "id": "alice",
+      "role": "User",
+      "label": "Alice source account"
+    },
+    {
+      "type": "create_account",
+      "id": "bob",
+      "role": "User",
+      "label": "Bob destination account"
+    },
+    {
+      "type": "create_account",
+      "id": "fee-op-alpha",
+      "role": "OperatorFee",
+      "label": "Alpha fee account"
+    },
+    {
+      "type": "create_account",
+      "id": "fee-op-beta",
+      "role": "OperatorFee",
+      "label": "Beta fee account"
+    },
+    {
+      "type": "deposit",
+      "account": "alice",
+      "asset": "EUSD",
+      "amount": 20000
+    },
+    {
+      "type": "deposit",
+      "account": "vault",
+      "asset": "ELIQ",
+      "amount": 50000
+    },
+    {
+      "type": "register_operator",
+      "id": "op-alpha",
+      "display_name": "Alpha internal desk",
+      "lane": "primary",
+      "fee_account": "fee-op-alpha",
+      "reliability_bps": 10000
+    },
+    {
+      "type": "register_operator",
+      "id": "op-beta",
+      "display_name": "Beta internal desk",
+      "lane": "secondary",
+      "fee_account": "fee-op-beta",
+      "reliability_bps": 10000
+    },
+    {
+      "type": "pledge_guarantee",
+      "operator": "op-alpha",
+      "amount": 5000
+    },
+    {
+      "type": "pledge_guarantee",
+      "operator": "op-beta",
+      "amount": 5000
+    },
+    {
+      "type": "register_route",
+      "id": "route-main",
+      "label": "EUSD to ELIQ internal path",
+      "class": "DirectInternal",
+      "source": "EUSD",
+      "target": "ELIQ",
+      "price_numerator": 1,
+      "price_denominator": 1,
+      "max_slippage_bps": 25,
+      "guarantee_bps_floor": 1000,
+      "fallback_rank": 10
+    },
+    {
+      "type": "open_batch",
+      "id": "batch-001",
+      "payer": "alice",
+      "recipient": "bob",
+      "source": "EUSD",
+      "target": "ELIQ",
+      "amount_in": 10000,
+      "min_out": 9900,
+      "opened_at": 100,
+      "deadline": 500,
+      "allow_fallback": false
+    },
+    {
+      "type": "submit_bid",
+      "id": "bid-alpha",
+      "batch": "batch-001",
+      "route": "route-main",
+      "operator": "op-alpha",
+      "price_numerator": 101,
+      "price_denominator": 100,
+      "fee_bps": 20,
+      "guarantee_bps": 1500,
+      "received_at": 110,
+      "expires_at": 450,
+      "lane": "primary",
+      "quote_ref": "alpha-quote-001"
+    },
+    {
+      "type": "submit_bid",
+      "id": "bid-beta",
+      "batch": "batch-001",
+      "route": "route-main",
+      "operator": "op-beta",
+      "price_numerator": 201,
+      "price_denominator": 200,
+      "fee_bps": 10,
+      "guarantee_bps": 1200,
+      "received_at": 111,
+      "expires_at": 450,
+      "lane": "secondary",
+      "quote_ref": "beta-quote-001"
+    },
+    {
+      "type": "select_winner",
+      "batch": "batch-001",
+      "now": 120
+    },
+    {
+      "type": "settle_batch",
+      "batch": "batch-001",
+      "now": 130,
+      "allow_fallback": false
+    },
+    {
+      "type": "snapshot",
+      "name": "final"
+    }
+  ]
+}
