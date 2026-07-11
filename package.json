@@ -5,7 +5,7 @@
   "description": "Scenario tests for the EclipseDTL liquidity auction engine",
   "type": "commonjs",
   "scripts": {
-    "test": "node --test \"tests/node/*.test.js\"",
+    "test": "node --test tests/node/*.test.js",
     "test:rust": "cargo test --locked",
     "ci": "bash scripts/ci.sh"
   },

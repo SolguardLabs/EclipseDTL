@@ -39,4 +39,4 @@ CARGO_BIN="$(resolve_cargo)"
 NODE_BIN="$(resolve_node)"
 
 "${CARGO_BIN}" test --locked
-ECLIPSEDTL_CARGO="${CARGO_BIN}" "${NODE_BIN}" --test "tests/node/*.test.js"
+ECLIPSEDTL_CARGO="${CARGO_BIN}" "${NODE_BIN}" --test tests/node/*.test.js

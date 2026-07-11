@@ -42,4 +42,4 @@ NODE_BIN="$(resolve_node)"
 "${CARGO_BIN}" build --all-targets --locked
 "${CARGO_BIN}" test --locked
 "${CARGO_BIN}" clippy --all-targets --all-features --locked -- -D warnings
-ECLIPSEDTL_CARGO="${CARGO_BIN}" "${NODE_BIN}" --test "tests/node/*.test.js"
+ECLIPSEDTL_CARGO="${CARGO_BIN}" "${NODE_BIN}" --test tests/node/*.test.js
