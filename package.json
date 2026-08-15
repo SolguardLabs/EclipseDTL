@@ -1,15 +1,17 @@
 {
   "name": "eclipsedtl",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "Scenario tests for the EclipseDTL liquidity auction engine",
+  "description": "Scenario SDK and integration tests for the EclipseDTL liquidity auction engine",
   "type": "commonjs",
   "scripts": {
     "test": "node --test tests/node/*.test.js",
+    "test:sdk": "node --test tests/node/sdk.test.js",
     "test:rust": "cargo test --locked",
+    "verify": "bash scripts/verify-repository.sh",
     "ci": "bash scripts/ci.sh"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }
