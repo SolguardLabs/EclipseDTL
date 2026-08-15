@@ -1,54 +1,205 @@
 # EclipseDTL
 
-![banner](./assets/banner.png)
+![Banner de EclipseDTL](./assets/banner.png)
 
-EclipseDTL is a Rust engine for internal DTL liquidity auctions. Operators submit
-route bids with price, fee and guarantee terms, and the engine selects a desk,
-settles the batch against vault liquidity, records operator exposure and can move
-to a fallback bid when a selected route cannot clear.
+EclipseDTL es un motor determinista de subastas de liquidez y settlement para
+rutas DTL. Coordina órdenes por lotes, cotizaciones competitivas de operadores,
+políticas de ruta, garantías, movimiento de activos, fallback y reconciliación
+en una única máquina de estados auditable.
 
-## Components
+La entrega `Production 1.0.0` combina un núcleo Rust 1.97.1, escenarios JSON y
+un cliente JavaScript para integraciones sin estado compartido ni servicios
+externos implícitos.
 
-- `src/auction.rs`: bid admission, scoring and winner selection.
-- `src/risk.rs`: route, liquidity and guarantee admission checks.
-- `src/operators.rs`: operator state, guarantee pledges and exposure accounting.
-- `src/settlement.rs`: batch settlement, fee routing and fallback execution.
-- `src/scenario.rs`: JSON scenario runner used by integration tests.
-- `tests/node/`: end-to-end tests that execute the public CLI.
+## Capacidades
 
-## Requirements
+- admisión de bids con precio, fee, garantía, fiabilidad y límites por ruta;
+- selección determinista por output neto, prioridad, garantía y penalización;
+- settlement atómico entre payer, vault, recipient y cuenta de fees;
+- fallback explícito a la siguiente oferta admitida;
+- accounting de pledge, capital bloqueado y exposición por ruta y activo;
+- análisis de cobertura estresada, utilización, shortfall y concentración HHI;
+- snapshots, eventos, receipts y reconciliación por activo;
+- cliente JavaScript con timeout, buffer acotado y ejecución sin shell.
 
-- Rust stable toolchain.
-- Node.js 20 or newer.
-- Bash for local CI scripts.
+## Arquitectura
 
-## Usage
-
-Run a scenario:
-
-```bash
-cargo run -- --scenario tests/fixtures/normal_batch.json
+```mermaid
+flowchart LR
+    I["Orden de batch"] --> B["BatchBook"]
+    Q["Bids de operadores"] --> A["AuctionBook"]
+    B --> R["RiskEngine"]
+    A --> R
+    R --> S["SettlementEngine"]
+    S --> C["AccountBook"]
+    S --> O["OperatorBook"]
+    C --> X["Receipt y eventos"]
+    O --> X
+    O --> M["Capital report"]
 ```
 
-Run the Rust and JavaScript suites:
+```mermaid
+sequenceDiagram
+    participant U as Integrador
+    participant B as BatchBook
+    participant A as AuctionBook
+    participant R as RiskEngine
+    participant S as SettlementEngine
+    participant L as Ledgers
+    U->>B: open_batch
+    U->>A: submit_bid
+    A->>R: assess_bid
+    R-->>A: assessment + snapshot
+    U->>A: select_winner
+    U->>S: settle_batch
+    S->>R: preflight_settlement
+    S->>L: transfers + guarantee
+    L-->>S: balances + attachment
+    S-->>U: settlement receipt
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Healthy
+    Healthy --> Watch: cobertura bajo aviso
+    Watch --> Healthy: capital restaurado
+    Watch --> Constrained: cobertura bajo mínimo
+    Constrained --> Watch: exposición reducida
+    Constrained --> Exhausted: capital efectivo cero
+    Exhausted --> Constrained: nuevo pledge
+```
+
+## Flujo Economico
+
+Para un input `x`, precio racional `p/q`, fee `f` y garantía seleccionada `g`:
+
+```text
+gross_out          = floor(x * p / q)
+operator_fee       = floor(gross_out * f / 10_000)
+net_out            = gross_out - operator_fee
+required_guarantee = ceil(gross_out * g / 10_000)
+```
+
+El motor de capital aplica un escenario adicional sobre la exposición
+registrada:
+
+```text
+stressed_exposure  = exposure + ceil(exposure * addon_bps / 10_000)
+effective_guarantee = pledged - ceil(locked * haircut_bps / 10_000)
+coverage_bps       = effective_guarantee * 10_000 / stressed_exposure
+```
+
+La concentración se expresa como un HHI normalizado en puntos básicos:
+
+```text
+HHI = sum((bucket_exposure / total_exposure)^2) * 10_000
+```
+
+## Componentes
+
+| Componente | Responsabilidad |
+| --- | --- |
+| `src/batch.rs` | Ciclo de vida y condiciones de una orden agregada |
+| `src/auction.rs` | Tickets, scoring, selección y fallback |
+| `src/risk.rs` | Admisión económica y preflight de liquidez |
+| `src/operators.rs` | Pledge, locks, releases y exposición |
+| `src/settlement.rs` | Transferencias, fees, receipts y cierre |
+| `src/capital.rs` | Cobertura estresada y agregación de red |
+| `src/reconciliation.rs` | Comparación entre balances y movimientos |
+| `src/telemetry.rs` | Contadores, gauges, histogramas y SLO |
+| `src/scenario.rs` | Orquestación determinista desde JSON |
+| `sdk/client.js` | Cliente de procesos para Node.js |
+
+## Requisitos
+
+- Rust `1.97.1` con `rustfmt` y `clippy`;
+- Node.js `24` o superior;
+- Bash para los comandos de validación.
+
+El toolchain queda fijado en `rust-toolchain.toml` y Cargo usa el lockfile
+versionado.
+
+## Inicio Rapido
+
+```bash
+cargo build --locked
+cargo run --locked -- --scenario tests/fixtures/normal_batch.json
+```
+
+El comando devuelve un informe JSON con eventos, cuentas, operadores, rutas,
+batches, bids, receipts y snapshots.
+
+Ejemplo mínimo de una acción:
+
+```json
+{
+  "type": "submit_bid",
+  "id": "bid-alpha",
+  "batch": "batch-001",
+  "route": "route-main",
+  "operator": "op-alpha",
+  "price_numerator": 101,
+  "price_denominator": 100,
+  "fee_bps": 20,
+  "guarantee_bps": 1500,
+  "received_at": 110,
+  "expires_at": 450
+}
+```
+
+## Cliente JavaScript
+
+```js
+const { EclipseScenarioClient } = require("./sdk");
+
+const client = new EclipseScenarioClient({
+  timeoutMs: 15_000,
+  maxBuffer: 8 * 1024 * 1024,
+});
+
+const report = client.runFile("tests/fixtures/normal_batch.json");
+console.log(report.receipts[0]);
+```
+
+`runScenario` acepta también un objeto en memoria, crea un archivo temporal con
+permisos restrictivos y garantiza su limpieza. El proceso se inicia con
+argumentos separados, `shell: false`, timeout y límite de salida.
+
+## Validacion
 
 ```bash
 bash scripts/tests.sh
-```
-
-Run the full local CI profile:
-
-```bash
 bash scripts/ci.sh
 ```
 
-## Scenario Model
+El perfil completo ejecuta:
 
-Scenarios register assets, accounts, operators and routes, then open batches,
-submit bids, select a winner and settle. Reports are emitted as JSON and include
-events, balances, operator guarantee state, bid status and settlement receipts.
+1. formato Rust;
+2. build de todos los targets;
+3. pruebas Rust y Node.js;
+4. Clippy con warnings tratados como error;
+5. contrato de estructura, documentación, banner y métricas.
 
-## Project Status
+La suite pública contiene 19 pruebas: 10 del modelo de capital y 9 de
+integración/SDK.
 
-The repository is a compact protocol implementation intended for local audit
-practice and deterministic CI execution. It does not require external services.
+## Entrega
+
+La rama `production`, el tag anotado `v1.0.0` y el release
+`Production 1.0.0` se promueven desde el mismo commit después de completar los
+gates de CI e integridad.
+
+## Documentacion
+
+- [Arquitectura](./docs/architecture.md)
+- [Subasta y routing](./docs/auction-and-routing.md)
+- [Modelo económico](./docs/economic-model.md)
+- [Capital y riesgo](./docs/capital-and-risk.md)
+- [Lifecycle de settlement](./docs/settlement-lifecycle.md)
+- [Operaciones](./docs/operations.md)
+- [Integración](./docs/integration.md)
+- [Política de seguridad](./SECURITY.md)
+
+## Licencia
+
+Apache-2.0. Consulta [LICENSE](./LICENSE).

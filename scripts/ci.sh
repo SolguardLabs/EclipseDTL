@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
 resolve_cargo() {
   if command -v cargo >/dev/null 2>&1; then
     command -v cargo
@@ -10,11 +13,11 @@ resolve_cargo() {
     printf '%s\n' "${CARGO_HOME}/bin/cargo.exe"
     return
   fi
-  if [[ -n "${HOME:-}" && -x "${HOME}/.cargo/bin/cargo.exe" ]]; then
-    printf '%s\n' "${HOME}/.cargo/bin/cargo.exe"
+  if [[ -n "${USERPROFILE:-}" && -x "${USERPROFILE}/.cargo/bin/cargo.exe" ]]; then
+    printf '%s\n' "${USERPROFILE}/.cargo/bin/cargo.exe"
     return
   fi
-  for candidate in /mnt/c/Users/*/.cargo/bin/cargo.exe; do
+  for candidate in /c/Users/*/.cargo/bin/cargo.exe /mnt/c/Users/*/.cargo/bin/cargo.exe; do
     if [[ -x "${candidate}" ]]; then
       printf '%s\n' "${candidate}"
       return
@@ -28,10 +31,12 @@ resolve_node() {
     command -v node
     return
   fi
-  if [[ -x "/mnt/c/Program Files/nodejs/node.exe" ]]; then
-    printf '%s\n' "/mnt/c/Program Files/nodejs/node.exe"
-    return
-  fi
+  for candidate in "/c/Program Files/nodejs/node.exe" "/mnt/c/Program Files/nodejs/node.exe"; do
+    if [[ -x "${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return
+    fi
+  done
   printf '%s\n' node
 }
 
@@ -40,6 +45,7 @@ NODE_BIN="$(resolve_node)"
 
 "${CARGO_BIN}" fmt --all -- --check
 "${CARGO_BIN}" build --all-targets --locked
-"${CARGO_BIN}" test --locked
+"${CARGO_BIN}" test --all-targets --locked
 "${CARGO_BIN}" clippy --all-targets --all-features --locked -- -D warnings
 ECLIPSEDTL_CARGO="${CARGO_BIN}" "${NODE_BIN}" --test tests/node/*.test.js
+bash scripts/verify-repository.sh
